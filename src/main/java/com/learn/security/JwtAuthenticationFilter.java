@@ -50,6 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         Collections.singletonList(new SimpleGrantedAuthority(role))
                 );
 
+        // Store full JWT claims as details so controllers can read companyId etc.
+        authentication.setDetails(claims);
+
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);

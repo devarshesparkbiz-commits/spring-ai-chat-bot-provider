@@ -98,6 +98,17 @@ public class AdminUserServiceImpl
     }
 
     @Override
+    public CommonResponse softDeleteAdminUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+        user.setActive(false);
+        userRepository.save(user);
+        return CommonResponse.builder()
+                .message("Admin user deactivated successfully")
+                .build();
+    }
+
+    @Override
     public AdminUserResponse getAdminUser(
             Long userId
     ) {

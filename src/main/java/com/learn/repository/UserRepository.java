@@ -2,6 +2,7 @@ package com.learn.repository;
 
 import com.learn.entity.User;
 import com.learn.enums.UserRole;
+import com.learn.enums.UserType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,19 +18,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByUserRole(UserRole userRole);
 
-    Page<User> findByUserRole(
-            UserRole userRole,
-            Pageable pageable
-    );
+    Page<User> findByUserRole(UserRole userRole, Pageable pageable);
 
-    List<User> findByUserRoleAndCompany_CompanyId(
-            UserRole userRole,
-            Long companyId
-    );
+    List<User> findByUserRoleAndCompany_CompanyId(UserRole userRole, Long companyId);
 
     Page<User> findByUserRoleAndCompany_CompanyId(
-            UserRole userRole,
-            Long companyId,
-            Pageable pageable
-    );
+            UserRole userRole, Long companyId, Pageable pageable);
+
+    // ── Company-type users (both COMPANY_ADMIN and COMPANY_USER) ─────────────
+
+    List<User> findByUserTypeAndUserRoleIn(UserType userType, List<UserRole> roles);
+
+    Page<User> findByUserTypeAndUserRoleIn(
+            UserType userType, List<UserRole> roles, Pageable pageable);
+
+    Page<User> findByUserTypeAndUserRoleInAndCompany_CompanyId(
+            UserType userType, List<UserRole> roles, Long companyId, Pageable pageable);
 }

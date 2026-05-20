@@ -21,6 +21,8 @@ public interface CompanyUserService {
             CompanyUserRequest request
     );
 
+    CommonResponse softDeleteCompanyUser(Long userId);
+
     CompanyUserResponse getCompanyUser(
             Long userId
     );

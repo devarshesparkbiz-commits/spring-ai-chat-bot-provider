@@ -35,6 +35,13 @@ public class CompanyController {
         return companyService.updateCompany(companyId, request);
     }
 
+    @DeleteMapping("/{companyId:\\d+}")
+    public CommonResponse softDeleteCompany(
+            @PathVariable Long companyId
+    ) {
+        return companyService.softDeleteCompany(companyId);
+    }
+
     @GetMapping("/{companyId:\\d+}")
     public CompanyResponse getCompany(
             @PathVariable Long companyId

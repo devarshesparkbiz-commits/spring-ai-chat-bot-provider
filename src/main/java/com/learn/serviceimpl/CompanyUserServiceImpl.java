@@ -37,6 +37,22 @@ public class CompanyUserServiceImpl
     private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
 
+    private CompanyUserResponse toResponse(User user) {
+        return CompanyUserResponse.builder()
+                .userId(user.getUserId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .mobileNumber(user.getMobileNumber())
+                .companyName(user.getCompany() != null
+                        ? user.getCompany().getCompanyName() : null)
+                .companyId(user.getCompany() != null
+                        ? user.getCompany().getCompanyId() : null)
+                .userRole(user.getUserRole())
+                .active(user.getActive())
+                .build();
+    }
+
     @Override
     public CommonResponse addCompanyUser(
             CompanyUserRequest request
@@ -46,21 +62,20 @@ public class CompanyUserServiceImpl
                         request.getCompanyId()
                 )
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company not found"
-                        ));
+                        new RuntimeException("Company not found"));
+
+        // Default to COMPANY_USER if not specified
+        UserRole role = request.getUserRole() != null
+                ? request.getUserRole()
+                : UserRole.COMPANY_USER;
 
         User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
-                .password(
-                        passwordEncoder.encode(
-                                request.getPassword()
-                        )
-                )
+                .password(passwordEncoder.encode(request.getPassword()))
                 .mobileNumber(request.getMobileNumber())
-                .userRole(UserRole.COMPANY_USER)
+                .userRole(role)
                 .userType(UserType.COMPANY)
                 .company(company)
                 .active(request.getActive())
@@ -81,17 +96,13 @@ public class CompanyUserServiceImpl
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company user not found"
-                        ));
+                        new RuntimeException("Company user not found"));
 
         Company company = companyRepository.findById(
                         request.getCompanyId()
                 )
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company not found"
-                        ));
+                        new RuntimeException("Company not found"));
 
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -99,17 +110,16 @@ public class CompanyUserServiceImpl
 
         if (request.getPassword() != null &&
                 !request.getPassword().isBlank()) {
-
-            user.setPassword(
-                    passwordEncoder.encode(
-                            request.getPassword()
-                    )
-            );
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
         user.setMobileNumber(request.getMobileNumber());
         user.setCompany(company);
         user.setActive(request.getActive());
+
+        if (request.getUserRole() != null) {
+            user.setUserRole(request.getUserRole());
+        }
 
         userRepository.save(user);
 
@@ -119,89 +129,49 @@ public class CompanyUserServiceImpl
     }
 
     @Override
-    public CompanyUserResponse getCompanyUser(
-            Long userId
-    ) {
-
+    public CommonResponse softDeleteCompanyUser(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company user not found"
-                        ));
-
-        return CompanyUserResponse.builder()
-                .userId(user.getUserId())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .email(user.getEmail())
-                .mobileNumber(user.getMobileNumber())
-                .companyName(
-                        user.getCompany() != null
-                                ? user.getCompany().getCompanyName()
-                                : null
-                )
-                .active(user.getActive())
+                .orElseThrow(() -> new RuntimeException("Company user not found"));
+        user.setActive(false);
+        userRepository.save(user);
+        return CommonResponse.builder()
+                .message("Company user deactivated successfully")
                 .build();
     }
 
     @Override
-    public List<CompanyUserResponse>
-    getAllCompanyUsers() {
+    public CompanyUserResponse getCompanyUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("Company user not found"));
+        return toResponse(user);
+    }
 
-        return userRepository.findByUserRole(
-                        UserRole.COMPANY_USER
+    @Override
+    public List<CompanyUserResponse> getAllCompanyUsers() {
+        return userRepository
+                .findByUserTypeAndUserRoleIn(
+                        UserType.COMPANY,
+                        List.of(UserRole.COMPANY_ADMIN, UserRole.COMPANY_USER)
                 )
                 .stream()
-                .map(user -> CompanyUserResponse.builder()
-                        .userId(user.getUserId())
-                        .firstName(user.getFirstName())
-                        .lastName(user.getLastName())
-                        .email(user.getEmail())
-                        .mobileNumber(user.getMobileNumber())
-                        .companyName(
-                                user.getCompany() != null
-                                        ? user.getCompany().getCompanyName()
-                                        : null
-                        )
-                        .active(user.getActive())
-                        .build())
+                .map(this::toResponse)
                 .toList();
     }
 
     @Override
     public PaginationResponse<CompanyUserResponse>
-    getCompanyUsersWithPagination(
-            Integer pageNumber,
-            Integer pageSize
-    ) {
+    getCompanyUsersWithPagination(Integer pageNumber, Integer pageSize) {
 
-        Page<User> page =
-                userRepository.findByUserRole(
-                        UserRole.COMPANY_USER,
+        Page<User> page = userRepository
+                .findByUserTypeAndUserRoleIn(
+                        UserType.COMPANY,
+                        List.of(UserRole.COMPANY_ADMIN, UserRole.COMPANY_USER),
                         PageRequest.of(pageNumber, pageSize)
                 );
 
-        List<CompanyUserResponse> users =
-                page.getContent()
-                        .stream()
-                        .map(user -> CompanyUserResponse.builder()
-                                .userId(user.getUserId())
-                                .firstName(user.getFirstName())
-                                .lastName(user.getLastName())
-                                .email(user.getEmail())
-                                .mobileNumber(user.getMobileNumber())
-                                .companyName(
-                                        user.getCompany() != null
-                                                ? user.getCompany().getCompanyName()
-                                                : null
-                                )
-                                .active(user.getActive())
-                                .build())
-                        .toList();
-
-        return PaginationResponse
-                .<CompanyUserResponse>builder()
-                .data(users)
+        return PaginationResponse.<CompanyUserResponse>builder()
+                .data(page.getContent().stream().map(this::toResponse).toList())
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())
@@ -213,39 +183,19 @@ public class CompanyUserServiceImpl
     @Override
     public PaginationResponse<CompanyUserResponse>
     getCompanyUsersByCompanyWithPagination(
-            Long companyId,
-            Integer pageNumber,
-            Integer pageSize
+            Long companyId, Integer pageNumber, Integer pageSize
     ) {
 
-        Page<User> page =
-                userRepository.findByUserRoleAndCompany_CompanyId(
-                        UserRole.COMPANY_USER,
+        Page<User> page = userRepository
+                .findByUserTypeAndUserRoleInAndCompany_CompanyId(
+                        UserType.COMPANY,
+                        List.of(UserRole.COMPANY_ADMIN, UserRole.COMPANY_USER),
                         companyId,
                         PageRequest.of(pageNumber, pageSize)
                 );
 
-        List<CompanyUserResponse> users =
-                page.getContent()
-                        .stream()
-                        .map(user -> CompanyUserResponse.builder()
-                                .userId(user.getUserId())
-                                .firstName(user.getFirstName())
-                                .lastName(user.getLastName())
-                                .email(user.getEmail())
-                                .mobileNumber(user.getMobileNumber())
-                                .companyName(
-                                        user.getCompany() != null
-                                                ? user.getCompany().getCompanyName()
-                                                : null
-                                )
-                                .active(user.getActive())
-                                .build())
-                        .toList();
-
-        return PaginationResponse
-                .<CompanyUserResponse>builder()
-                .data(users)
+        return PaginationResponse.<CompanyUserResponse>builder()
+                .data(page.getContent().stream().map(this::toResponse).toList())
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())
@@ -255,128 +205,73 @@ public class CompanyUserServiceImpl
     }
 
     @Override
-    downloadCompanyUsersExcel() {
+    public ResponseEntity<ByteArrayResource> downloadCompanyUsersExcel() {
 
         try {
+            List<User> users = userRepository.findByUserTypeAndUserRoleIn(
+                    UserType.COMPANY,
+                    List.of(UserRole.COMPANY_ADMIN, UserRole.COMPANY_USER)
+            );
 
-            List<User> users =
-                    userRepository.findByUserRole(
-                            UserRole.COMPANY_USER
-                    );
-
-            XSSFWorkbook workbook =
-                    new XSSFWorkbook();
-
-            XSSFSheet sheet =
-                    workbook.createSheet(
-                            "Company Users"
-                    );
+            XSSFWorkbook workbook = new XSSFWorkbook();
+            XSSFSheet sheet = workbook.createSheet("Company Users");
 
             Row header = sheet.createRow(0);
-
-            header.createCell(0)
-                    .setCellValue("First Name");
-
-            header.createCell(1)
-                    .setCellValue("Last Name");
-
-            header.createCell(2)
-                    .setCellValue("Email");
-
-            header.createCell(3)
-                    .setCellValue("Mobile Number");
-
-            header.createCell(4)
-                    .setCellValue("Company");
-
-            header.createCell(5)
-                    .setCellValue("Active");
+            header.createCell(0).setCellValue("First Name");
+            header.createCell(1).setCellValue("Last Name");
+            header.createCell(2).setCellValue("Email");
+            header.createCell(3).setCellValue("Mobile Number");
+            header.createCell(4).setCellValue("Company");
+            header.createCell(5).setCellValue("Role");
+            header.createCell(6).setCellValue("Active");
 
             int rowNum = 1;
-
             for (User user : users) {
-
                 Row row = sheet.createRow(rowNum++);
-
-                row.createCell(0)
-                        .setCellValue(user.getFirstName());
-
-                row.createCell(1)
-                        .setCellValue(user.getLastName());
-
-                row.createCell(2)
-                        .setCellValue(user.getEmail());
-
-                row.createCell(3)
-                        .setCellValue(user.getMobileNumber());
-
-                row.createCell(4)
-                        .setCellValue(
-                                user.getCompany() != null
-                                        ? user.getCompany().getCompanyName()
-                                        : ""
-                        );
-
-                row.createCell(5)
-                        .setCellValue(user.getActive());
+                row.createCell(0).setCellValue(user.getFirstName());
+                row.createCell(1).setCellValue(user.getLastName());
+                row.createCell(2).setCellValue(user.getEmail());
+                row.createCell(3).setCellValue(user.getMobileNumber());
+                row.createCell(4).setCellValue(
+                        user.getCompany() != null ? user.getCompany().getCompanyName() : "");
+                row.createCell(5).setCellValue(
+                        user.getUserRole() != null ? user.getUserRole().name() : "");
+                row.createCell(6).setCellValue(user.getActive());
             }
 
-            for (int i = 0; i < 6; i++) {
-                sheet.autoSizeColumn(i);
-            }
+            for (int i = 0; i < 7; i++) sheet.autoSizeColumn(i);
 
-            ByteArrayOutputStream out =
-                    new ByteArrayOutputStream();
-
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
-
             workbook.close();
 
-            ByteArrayResource resource =
-                    new ByteArrayResource(
-                            out.toByteArray()
-                    );
+            ByteArrayResource resource = new ByteArrayResource(out.toByteArray());
 
             return ResponseEntity.ok()
-                    .header(
-                            HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=company-users.xlsx"
-                    )
-                    .contentType(
-                            MediaType.parseMediaType(
-                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            )
-                    )
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=company-users.xlsx")
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .contentLength(resource.contentLength())
                     .body(resource);
 
         } catch (Exception e) {
-
-            throw new RuntimeException(
-                    "Failed to download company users excel"
-            );
+            throw new RuntimeException("Failed to download company users excel");
         }
     }
 
     @Override
-    public List<DropdownResponse>
-    getCompanyUserDropdown() {
-
+    public List<DropdownResponse> getCompanyUserDropdown() {
         return userRepository
-                .findByUserRole(
-                        UserRole.COMPANY_USER
+                .findByUserTypeAndUserRoleIn(
+                        UserType.COMPANY,
+                        List.of(UserRole.COMPANY_ADMIN, UserRole.COMPANY_USER)
                 )
                 .stream()
-                .map(user ->
-                        DropdownResponse.builder()
-                                .id(user.getUserId())
-                                .name(
-                                        user.getFirstName()
-                                                + " "
-                                                + user.getLastName()
-                                )
-                                .build()
-                )
+                .map(user -> DropdownResponse.builder()
+                        .id(user.getUserId())
+                        .name(user.getFirstName() + " " + user.getLastName())
+                        .build())
                 .toList();
     }
 }

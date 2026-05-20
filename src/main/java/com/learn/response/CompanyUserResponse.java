@@ -1,5 +1,6 @@
 package com.learn.response;
 
+import com.learn.enums.UserRole;
 import lombok.*;
 
 @Getter
@@ -20,6 +21,10 @@ public class CompanyUserResponse {
     private String mobileNumber;
 
     private String companyName;
+
+    private Long companyId;
+
+    private UserRole userRole;
 
     private Boolean active;
 }

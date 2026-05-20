@@ -1,5 +1,6 @@
 package com.learn.dto;
 
+import com.learn.enums.UserRole;
 import lombok.*;
 
 @Getter
@@ -22,4 +23,10 @@ public class CompanyUserRequest {
     private Long companyId;
 
     private Boolean active;
+
+    /**
+     * COMPANY_ADMIN → company admin user
+     * COMPANY_USER  → regular company user (default)
+     */
+    private UserRole userRole;
 }

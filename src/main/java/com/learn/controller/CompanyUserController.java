@@ -39,6 +39,13 @@ public class CompanyUserController {
                 .updateCompanyUser(userId, request);
     }
 
+    @DeleteMapping("/{userId:\\d+}")
+    public CommonResponse softDeleteCompanyUser(
+            @PathVariable Long userId
+    ) {
+        return companyUserService.softDeleteCompanyUser(userId);
+    }
+
     @GetMapping("/{userId:\\d+}")
     public CompanyUserResponse getCompanyUser(
             @PathVariable Long userId

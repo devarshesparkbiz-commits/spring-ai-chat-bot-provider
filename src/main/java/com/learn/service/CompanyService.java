@@ -17,6 +17,8 @@ public interface CompanyService {
     CommonResponse updateCompany(Long companyId,
                                  CompanyRequest request);
 
+    CommonResponse softDeleteCompany(Long companyId);
+
     CompanyResponse getCompany(Long companyId);
 
     List<CompanyResponse> getAllCompanies();

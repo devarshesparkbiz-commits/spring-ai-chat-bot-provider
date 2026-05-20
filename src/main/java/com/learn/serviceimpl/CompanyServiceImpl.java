@@ -69,6 +69,17 @@ public class CompanyServiceImpl implements CompanyService {
     }
 
     @Override
+    public CommonResponse softDeleteCompany(Long companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new RuntimeException("Company not found"));
+        company.setActive(false);
+        companyRepository.save(company);
+        return CommonResponse.builder()
+                .message("Company deactivated successfully")
+                .build();
+    }
+
+    @Override
     public CompanyResponse getCompany(Long companyId) {
 
         Company company = companyRepository.findById(companyId)

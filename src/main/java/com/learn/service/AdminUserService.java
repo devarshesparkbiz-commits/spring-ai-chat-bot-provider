@@ -21,6 +21,8 @@ public interface AdminUserService {
             AdminUserRequest request
     );
 
+    CommonResponse softDeleteAdminUser(Long userId);
+
     AdminUserResponse getAdminUser(
             Long userId
     );

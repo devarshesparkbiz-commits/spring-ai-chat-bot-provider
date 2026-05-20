@@ -39,6 +39,13 @@ public class AdminUserController {
                 .updateAdminUser(userId, request);
     }
 
+    @DeleteMapping("/{userId:\\d+}")
+    public CommonResponse softDeleteAdminUser(
+            @PathVariable Long userId
+    ) {
+        return adminUserService.softDeleteAdminUser(userId);
+    }
+
     @GetMapping("/{userId:\\d+}")
     public AdminUserResponse getAdminUser(
             @PathVariable Long userId
