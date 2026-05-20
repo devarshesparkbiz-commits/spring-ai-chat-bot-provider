@@ -14,36 +14,25 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration =
-                new CorsConfiguration();
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
-        );
+        // ── Internal admin panel (React frontend) ─────────────────────────────
+        CorsConfiguration internal = new CorsConfiguration();
+        internal.setAllowedOrigins(List.of("http://localhost:5173"));
+        internal.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        internal.setAllowedHeaders(List.of("*"));
+        internal.setAllowCredentials(true);
+        source.registerCorsConfiguration("/**", internal);
 
-        configuration.setAllowedMethods(
-                List.of(
-                        "GET",
-                        "POST",
-                        "PUT",
-                        "DELETE",
-                        "OPTIONS"
-                )
-        );
-
-        configuration.setAllowedHeaders(
-                List.of("*")
-        );
-
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration(
-                "/**",
-                configuration
-        );
+        // ── External public API — allow any origin ────────────────────────────
+        // Companies embed this in their own websites/apps from any domain.
+        // Per-key origin restriction is enforced in ApiKeyAuthenticationFilter.
+        CorsConfiguration external = new CorsConfiguration();
+        external.setAllowedOriginPatterns(List.of("*"));
+        external.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        external.setAllowedHeaders(List.of("Content-Type", "X-API-Key"));
+        external.setAllowCredentials(false);
+        source.registerCorsConfiguration("/api/v1/**", external);
 
         return source;
     }
